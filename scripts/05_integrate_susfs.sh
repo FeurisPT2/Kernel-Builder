@@ -65,7 +65,9 @@ if [ "$SUSFS_BRANCH" = "auto" ]; then
             TARGET_SUSFS_BRANCH="gki-android12-5.10"
             ;;
         5.15)
-            TARGET_SUSFS_BRANCH="gki-android14-5.15"
+            # gki-android13-5.15 uses VMA_PAD_START which doesn't exist in OEM 5.15 kernels
+            # Use the -dev branch which avoids that macro
+            TARGET_SUSFS_BRANCH="gki-android13-5.15-dev"
             ;;
         6.1)
             TARGET_SUSFS_BRANCH="gki-android14-6.1"

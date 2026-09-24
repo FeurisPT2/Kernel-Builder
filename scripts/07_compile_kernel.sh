@@ -115,8 +115,9 @@ if command -v ccache &>/dev/null; then
     export USE_CCACHE=1
     export CCACHE_DIR="${ROOT_DIR}/ccache"
     mkdir -p "$CCACHE_DIR"
-    MAKE_ARGS+=(CC="ccache clang")
-    log_info "Đã kích hoạt ccache."
+    # Correct approach: let ccache wrap clang via CC_WRAPPER, not CC= "ccache clang"
+    export CC_WRAPPER="ccache"
+    log_info "Đã kích hoạt ccache (CC_WRAPPER=ccache)."
 fi
 
 NPROC=$(nproc)
@@ -125,13 +126,12 @@ START_TIME=$(date +%s)
 
 cd "$KERNEL_ROOT_DIR"
 
-# Targets to build
-BUILD_TARGETS=()
-if [ "$BUILD_DTBO" = "true" ]; then
-    BUILD_TARGETS+=("dtbo.img")
+# Build dtbo if requested (append as extra target)
+if [ "${BUILD_DTBO:-false}" = "true" ]; then
+    make -j"$NPROC" "${MAKE_ARGS[@]}" dtbo.img
+else
+    make -j"$NPROC" "${MAKE_ARGS[@]}"
 fi
-
-make -j"$NPROC" "${MAKE_ARGS[@]}" "${BUILD_TARGETS[@]}"
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))

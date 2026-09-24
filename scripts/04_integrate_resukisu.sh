@@ -66,8 +66,8 @@ if [ -d "$KSU_DIR" ]; then
     log_info "Thư mục KernelSU đã tồn tại, cập nhật ReSukiSU..."
     cd "$KSU_DIR"
     git fetch --depth=1 origin "$RESUKISU_BRANCH" || true
-    git checkout "$RESUKISU_BRANCH" || true
-    git pull || true
+    git checkout "$RESUKISU_BRANCH" || git checkout -b "$RESUKISU_BRANCH" "FETCH_HEAD" || true
+    git reset --hard FETCH_HEAD || true
 else
     log_info "Đang clone ReSukiSU (${RESUKISU_BRANCH}) từ ${RESUKISU_REPO}..."
     git clone --depth=1 --branch "$RESUKISU_BRANCH" "$RESUKISU_REPO" "$KSU_DIR"
@@ -93,10 +93,17 @@ if grep -q "drivers/kernelsu/Kconfig" "$DRIVER_KCONFIG"; then
     log_ok "Kconfig đã có liên kết drivers/kernelsu/Kconfig."
 else
     if grep -q "endmenu" "$DRIVER_KCONFIG"; then
-        # Insert before the last endmenu
-        sed -i '/endmenu/i\source "drivers/kernelsu/Kconfig"' "$DRIVER_KCONFIG"
+        # Insert before the LAST endmenu only (not every endmenu)
+        python3 -c "
+import sys
+lines = open('$DRIVER_KCONFIG').readlines()
+# Find last occurrence of endmenu
+last_idx = max(i for i, l in enumerate(lines) if 'endmenu' in l)
+lines.insert(last_idx, 'source \"drivers/kernelsu/Kconfig\"\n')
+open('$DRIVER_KCONFIG', 'w').writelines(lines)
+"
     else
-        echo -e '\nsource "drivers/kernelsu/Kconfig"' >> "$DRIVER_KCONFIG"
+        printf '\nsource "drivers/kernelsu/Kconfig"\n' >> "$DRIVER_KCONFIG"
     fi
     log_ok "Đã thêm source \"drivers/kernelsu/Kconfig\" vào drivers/Kconfig"
 fi

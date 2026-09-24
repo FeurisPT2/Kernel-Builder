@@ -99,18 +99,27 @@ fi
 
 PATCHES_DIR="${SUSFS_WORK_DIR}/kernel_patches"
 
+if [ ! -d "$PATCHES_DIR" ]; then
+    log_error "Không tìm thấy thư mục kernel_patches/ trong SUSFS repo! Có thể nhánh '${TARGET_SUSFS_BRANCH}' không phù hợp."
+    exit 1
+fi
+
 # 1. Copy fs files
 log_info "Copying SUSFS fs files..."
 mkdir -p "${KERNEL_ROOT_DIR}/fs"
-if [ -d "${PATCHES_DIR}/fs" ]; then
+if [ -d "${PATCHES_DIR}/fs" ] && [ -n "$(ls -A "${PATCHES_DIR}/fs/" 2>/dev/null)" ]; then
     cp -rvf "${PATCHES_DIR}/fs/"* "${KERNEL_ROOT_DIR}/fs/"
+else
+    log_warn "Không có file nào trong ${PATCHES_DIR}/fs/ để copy."
 fi
 
 # 2. Copy include/linux headers
 log_info "Copying SUSFS headers..."
 mkdir -p "${KERNEL_ROOT_DIR}/include/linux"
-if [ -d "${PATCHES_DIR}/include/linux" ]; then
+if [ -d "${PATCHES_DIR}/include/linux" ] && [ -n "$(ls -A "${PATCHES_DIR}/include/linux/" 2>/dev/null)" ]; then
     cp -rvf "${PATCHES_DIR}/include/linux/"* "${KERNEL_ROOT_DIR}/include/linux/"
+else
+    log_warn "Không có file nào trong ${PATCHES_DIR}/include/linux/ để copy."
 fi
 
 # 3. Patch the kernel source

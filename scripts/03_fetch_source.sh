@@ -46,13 +46,13 @@ if [ -d "${SOURCE_DIR}/.git" ]; then
     fi
 else
     log_info "Đang clone kernel source từ: $KERNEL_SOURCE..."
-    BRANCH_PARAM=""
+    CLONE_ARGS=(--depth=1)
     if [ -n "$KERNEL_BRANCH" ]; then
-        BRANCH_PARAM="--branch $KERNEL_BRANCH"
+        CLONE_ARGS+=(--branch "$KERNEL_BRANCH")
     fi
 
     # Clone with depth=1 for fast cloning
-    git clone --depth=1 $BRANCH_PARAM "$KERNEL_SOURCE" "$SOURCE_DIR"
+    git clone "${CLONE_ARGS[@]}" "$KERNEL_SOURCE" "$SOURCE_DIR"
     log_ok "Clone kernel source thành công!"
 fi
 

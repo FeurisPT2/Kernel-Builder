@@ -97,7 +97,12 @@ ZIP_NAME="${DEVICE_NAME}_ReSukiSU_SUSFS_${BUILD_DATE}.zip"
 ZIP_PATH="${OUTPUT_DIR}/${ZIP_NAME}"
 
 log_info "Tạo file flashable ZIP: ${ZIP_NAME}..."
-zip -r9 "$ZIP_PATH" ./* -x .git README.md ./*placeholder
+# Ensure .git removed (already done above but safe to repeat)
+rm -rf .git .github
+zip -r9 "$ZIP_PATH" . \
+    -x "*.git*" \
+    -x "*placeholder" \
+    -x "*.md"
 
 # Generate SHA256 checksum
 cd "$OUTPUT_DIR"

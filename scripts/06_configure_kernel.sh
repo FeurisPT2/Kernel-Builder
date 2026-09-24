@@ -51,24 +51,29 @@ log_info "Tạo cấu hình ban đầu từ defconfig: ${KERNEL_DEFCONFIG}..."
 make O="$OUT_DIR" ARCH="$ARCH" SUBARCH="$SUBARCH" "$KERNEL_DEFCONFIG"
 
 # Function to enable config option via scripts/config or direct append
+# Usage: set_kconfig KEY value  (KEY without CONFIG_ prefix)
 set_kconfig() {
     local opt="$1"
     local val="$2"
+    local full_opt="CONFIG_${opt}"
     if [ -x "${KERNEL_ROOT_DIR}/scripts/config" ]; then
         if [ "$val" = "y" ]; then
-            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -e "$opt"
+            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -e "$full_opt"
         elif [ "$val" = "n" ]; then
-            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -d "$opt"
+            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -d "$full_opt"
         elif [ "$val" = "m" ]; then
-            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -m "$opt"
+            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -m "$full_opt"
         else
-            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" --set-str "$opt" "$val"
+            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" --set-str "$full_opt" "$val"
         fi
     else
-        # Fallback: remove existing and append
-        sed -i "/CONFIG_${opt}[ =]/d" "$OUT_DIR/.config"
+        # Fallback: remove existing entry (handles both =y and # ...is not set) then append
+        sed -i "/^${full_opt}[= ]/d" "$OUT_DIR/.config"
+        sed -i "/^# ${full_opt} /d" "$OUT_DIR/.config"
         if [ "$val" = "y" ] || [ "$val" = "m" ]; then
-            echo "CONFIG_${opt}=${val}" >> "$OUT_DIR/.config"
+            echo "${full_opt}=${val}" >> "$OUT_DIR/.config"
+        elif [ "$val" = "n" ]; then
+            echo "# ${full_opt} is not set" >> "$OUT_DIR/.config"
         fi
     fi
 }

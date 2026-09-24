@@ -98,7 +98,7 @@ jobs:
 
       - name: Generate Build Configuration
         run: |
-          cat <<EOF > config/config.env
+          cat > config/config.env << 'ENVEOF'
           DEVICE_NAME="${{ github.event.inputs.DEVICE_NAME }}"
           DEVICE_MODEL="${{ github.event.inputs.DEVICE_NAME }}"
           KERNEL_SOURCE="${{ github.event.inputs.KERNEL_SOURCE }}"
@@ -120,7 +120,10 @@ jobs:
           ANYKERNEL3_BRANCH="master"
           KERNEL_IMAGE_NAME="Image.gz-dtb"
           BUILD_DTBO=false
-          EOF
+          EXTRA_MAKE_FLAGS=""
+          ENVEOF
+          # Strip leading whitespace from generated config
+          sed -i 's/^[[:space:]]*//' config/config.env
           chmod +x build.sh scripts/*.sh
 
       - name: Run Kernel Auto-Builder
@@ -134,9 +137,13 @@ jobs:
           path: output/*
           if-no-files-found: error
 
+      - name: Get Build Date
+        id: build_date
+        run: echo "date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         if: ${{ github.event.inputs.RELEASE_BUILD == 'true' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
           name: Kernel ${{ github.event.inputs.DEVICE_NAME }} with ReSukiSU & SUSFS
@@ -148,7 +155,7 @@ jobs:
             - **Toolchain:** `${{ github.event.inputs.TOOLCHAIN_TYPE }}`
             - **ReSukiSU:** `${{ github.event.inputs.ENABLE_RESUKISU }}` (`${{ github.event.inputs.RESUKISU_BRANCH }}`)
             - **SUSFS:** `${{ github.event.inputs.ENABLE_SUSFS }}` (`${{ github.event.inputs.SUSFS_BRANCH }}`)
-            - **Build Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            - **Build Date:** ${{ steps.build_date.outputs.date }}
           files: output/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

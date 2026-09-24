@@ -63,6 +63,8 @@ set_kconfig() {
             "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -d "$full_opt"
         elif [ "$val" = "m" ]; then
             "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" -m "$full_opt"
+        elif [[ "$val" =~ ^[0-9]+$ ]]; then
+            "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" --set-val "$full_opt" "$val"
         else
             "${KERNEL_ROOT_DIR}/scripts/config" --file "$OUT_DIR/.config" --set-str "$full_opt" "$val"
         fi
@@ -70,10 +72,12 @@ set_kconfig() {
         # Fallback: remove existing entry (handles both =y and # ...is not set) then append
         sed -i "/^${full_opt}[= ]/d" "$OUT_DIR/.config"
         sed -i "/^# ${full_opt} /d" "$OUT_DIR/.config"
-        if [ "$val" = "y" ] || [ "$val" = "m" ]; then
+        if [ "$val" = "y" ] || [ "$val" = "m" ] || [[ "$val" =~ ^[0-9]+$ ]]; then
             echo "${full_opt}=${val}" >> "$OUT_DIR/.config"
         elif [ "$val" = "n" ]; then
             echo "# ${full_opt} is not set" >> "$OUT_DIR/.config"
+        else
+            echo "${full_opt}=\"${val}\"" >> "$OUT_DIR/.config"
         fi
     fi
 }
@@ -103,6 +107,11 @@ if [ "$ENABLE_SUSFS" = "true" ]; then
     set_kconfig "KSU_SUSFS_OPEN_REDIRECT" "y"
     set_kconfig "KSU_SUSFS_SUS_MAP" "y"
 fi
+
+# Disable stack frame warning & warnings-as-errors to prevent compile aborts on inlined functions (e.g. io_uring)
+log_info "Tắt giới hạn FRAME_WARN và WERROR để tránh lỗi compiler warnings..."
+set_kconfig "FRAME_WARN" "0"
+set_kconfig "WERROR" "n"
 
 # Remove -dirty flag from kernel release string to prevent detection by banking/integrity apps
 if [ -f "${KERNEL_ROOT_DIR}/scripts/setlocalversion" ]; then

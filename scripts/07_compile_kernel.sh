@@ -110,6 +110,9 @@ if [ -n "$EXTRA_MAKE_FLAGS" ]; then
     MAKE_ARGS+=($EXTRA_MAKE_FLAGS)
 fi
 
+# Downgrade compiler warnings from being treated as errors
+MAKE_ARGS+=(KCFLAGS="-Wno-error")
+
 # Enable ccache if available
 if command -v ccache &>/dev/null; then
     export USE_CCACHE=1

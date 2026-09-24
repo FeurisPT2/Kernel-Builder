@@ -1,0 +1,34 @@
+# Build directories
+work/
+source/
+kernel/
+out/
+build/
+output/
+toolchain/
+anykernel/
+dist/
+
+# Configuration
+config/config.env
+
+# Logs and temp files
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.tar.xz
+*.tar.zst
+*.tmp
+
+# Caches
+.cache/
+ccache/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~

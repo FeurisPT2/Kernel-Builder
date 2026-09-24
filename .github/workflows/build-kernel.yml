@@ -1,0 +1,154 @@
+name: Build Android Kernel with ReSukiSU + SUSFS
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel Source Git Repository URL'
+        required: true
+        default: 'https://github.com/LineageOS/android_kernel_xiaomi_sm8250'
+      KERNEL_BRANCH:
+        description: 'Kernel Source Branch'
+        required: true
+        default: 'lineage-20'
+      KERNEL_DEFCONFIG:
+        description: 'Device Defconfig (in arch/arm64/configs/)'
+        required: true
+        default: 'vendor/kona-perf_defconfig'
+      DEVICE_NAME:
+        description: 'Device Codename (e.g., alioth, sweet, vayu, gki)'
+        required: true
+        default: 'alioth'
+      TOOLCHAIN_TYPE:
+        description: 'Toolchain Type'
+        required: true
+        type: choice
+        options:
+          - proton-clang
+          - aosp-clang
+        default: 'proton-clang'
+      AOSP_CLANG_VERSION:
+        description: 'AOSP Clang Version (if aosp-clang selected)'
+        required: false
+        default: 'r450784d'
+      ENABLE_RESUKISU:
+        description: 'Integrate ReSukiSU Driver'
+        required: true
+        type: boolean
+        default: true
+      RESUKISU_BRANCH:
+        description: 'ReSukiSU Branch'
+        required: true
+        default: 'main'
+      ENABLE_SUSFS:
+        description: 'Integrate SUSFS (susfs4ksu)'
+        required: true
+        type: boolean
+        default: true
+      SUSFS_BRANCH:
+        description: 'SUSFS Branch (auto / kernel-4.19 / gki-android12-5.10 / etc.)'
+        required: true
+        default: 'auto'
+      ENABLE_ANYKERNEL3:
+        description: 'Package into AnyKernel3 Flashable ZIP'
+        required: true
+        type: boolean
+        default: true
+      RELEASE_BUILD:
+        description: 'Publish build artifacts to GitHub Releases'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    name: Build Kernel for ${{ github.event.inputs.DEVICE_NAME }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Builder Repository
+        uses: actions/checkout@v4
+
+      - name: Maximize Build Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
+            ccache curl git python3 zip unzip tar xz-utils zstd lz4 patch \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-aarch64-linux-gnu \
+            device-tree-compiler rsync
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: ccache
+          key: ${{ runner.os }}-ccache-${{ github.event.inputs.DEVICE_NAME }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ github.event.inputs.DEVICE_NAME }}-
+            ${{ runner.os }}-ccache-
+
+      - name: Generate Build Configuration
+        run: |
+          cat <<EOF > config/config.env
+          DEVICE_NAME="${{ github.event.inputs.DEVICE_NAME }}"
+          DEVICE_MODEL="${{ github.event.inputs.DEVICE_NAME }}"
+          KERNEL_SOURCE="${{ github.event.inputs.KERNEL_SOURCE }}"
+          KERNEL_BRANCH="${{ github.event.inputs.KERNEL_BRANCH }}"
+          KERNEL_DEFCONFIG="${{ github.event.inputs.KERNEL_DEFCONFIG }}"
+          ARCH="arm64"
+          SUBARCH="arm64"
+          TOOLCHAIN_TYPE="${{ github.event.inputs.TOOLCHAIN_TYPE }}"
+          AOSP_CLANG_VERSION="${{ github.event.inputs.AOSP_CLANG_VERSION }}"
+          LLVM="1"
+          ENABLE_RESUKISU=${{ github.event.inputs.ENABLE_RESUKISU }}
+          RESUKISU_REPO="https://github.com/ReSukiSU/ReSukiSU.git"
+          RESUKISU_BRANCH="${{ github.event.inputs.RESUKISU_BRANCH }}"
+          ENABLE_SUSFS=${{ github.event.inputs.ENABLE_SUSFS }}
+          SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu.git"
+          SUSFS_BRANCH="${{ github.event.inputs.SUSFS_BRANCH }}"
+          ENABLE_ANYKERNEL3=${{ github.event.inputs.ENABLE_ANYKERNEL3 }}
+          ANYKERNEL3_REPO="https://github.com/osm0sis/AnyKernel3.git"
+          ANYKERNEL3_BRANCH="master"
+          KERNEL_IMAGE_NAME="Image.gz-dtb"
+          BUILD_DTBO=false
+          EOF
+          chmod +x build.sh scripts/*.sh
+
+      - name: Run Kernel Auto-Builder
+        run: |
+          ./build.sh --skip-env
+
+      - name: Upload Kernel Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
+          path: output/*
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.RELEASE_BUILD == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
+          name: Kernel ${{ github.event.inputs.DEVICE_NAME }} with ReSukiSU & SUSFS
+          body: |
+            ### 🚀 Android Kernel Build Release
+            - **Device:** `${{ github.event.inputs.DEVICE_NAME }}`
+            - **Kernel Source:** `${{ github.event.inputs.KERNEL_SOURCE }}` (`${{ github.event.inputs.KERNEL_BRANCH }}`)
+            - **Defconfig:** `${{ github.event.inputs.KERNEL_DEFCONFIG }}`
+            - **Toolchain:** `${{ github.event.inputs.TOOLCHAIN_TYPE }}`
+            - **ReSukiSU:** `${{ github.event.inputs.ENABLE_RESUKISU }}` (`${{ github.event.inputs.RESUKISU_BRANCH }}`)
+            - **SUSFS:** `${{ github.event.inputs.ENABLE_SUSFS }}` (`${{ github.event.inputs.SUSFS_BRANCH }}`)
+            - **Build Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          files: output/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

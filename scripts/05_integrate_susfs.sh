@@ -150,8 +150,8 @@ fi
 # 4. Check ReSukiSU compatibility
 KSU_DIR="${KERNEL_ROOT_DIR}/KernelSU"
 if [ -d "$KSU_DIR" ]; then
-    if grep -q "CONFIG_KSU_SUSFS" "${KSU_DIR}/kernel/Kconfig" 2>/dev/null; then
-        log_ok "ReSukiSU đã tích hợp sẵn hỗ trợ KSU_SUSFS, không cần patch KSU riêng!"
+    if grep -Eq "KSU_SUSFS|config KSU_SUSFS" "${KSU_DIR}/kernel/Kconfig" 2>/dev/null; then
+        log_ok "ReSukiSU đã tích hợp sẵn hỗ trợ KSU_SUSFS, bỏ qua patch KSU riêng!"
     else
         # If vanilla KernelSU is used instead
         KSU_PATCH_FILE="${PATCHES_DIR}/KernelSU/10_enable_susfs_for_ksu.patch"

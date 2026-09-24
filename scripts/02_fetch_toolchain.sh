@@ -54,33 +54,60 @@ case "$TOOLCHAIN_TYPE" in
         if [ -x "${TARGET_DIR}/bin/clang" ]; then
             log_ok "AOSP Clang ${AOSP_CLANG_VERSION} đã tồn tại tại ${TARGET_DIR}"
         else
-            log_info "Đang tải AOSP Clang ${AOSP_CLANG_VERSION} từ Google Git..."
+            # Map AOSP Clang version to correct Google Git branch
+            case "$AOSP_CLANG_VERSION" in
+                r416183*) CLANG_BRANCH="master-kernel-build-2021" ;;
+                r450784*) CLANG_BRANCH="master-kernel-build-2022" ;;
+                r487747*|r498229*) CLANG_BRANCH="main-kernel-build-2023" ;;
+                r510928*|r522817*) CLANG_BRANCH="main-kernel-build-2024" ;;
+                r536225*|r547379*) CLANG_BRANCH="main-kernel-2025" ;;
+                r584948*) CLANG_BRANCH="main-kernel-2026" ;;
+                r596125*) CLANG_BRANCH="main-kernel" ;;
+                *) CLANG_BRANCH="master-kernel-build-2022" ;;
+            esac
+
+            log_info "Đang tải AOSP Clang ${AOSP_CLANG_VERSION} từ Google Git (nhánh ${CLANG_BRANCH})..."
             mkdir -p "$TARGET_DIR"
-            CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-${AOSP_CLANG_VERSION}.tar.gz"
-            if ! curl -sSL -o "${TOOLCHAIN_DIR}/clang.tar.gz" "$CLANG_URL"; then
-                log_warn "Không tải được từ Google master branch, thử mirror crDroid/LineageOS..."
+            CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${CLANG_BRANCH}/clang-${AOSP_CLANG_VERSION}.tar.gz"
+
+            DOWNLOAD_OK=false
+            if curl -sSL --fail -o "${TOOLCHAIN_DIR}/clang.tar.gz" "$CLANG_URL"; then
+                # Ensure downloaded archive is not an empty/keep archive (> 10MB)
+                ARCHIVE_SIZE=$(wc -c < "${TOOLCHAIN_DIR}/clang.tar.gz" || echo "0")
+                if [ "$ARCHIVE_SIZE" -gt 10000000 ]; then
+                    log_info "Giải nén AOSP Clang (${ARCHIVE_SIZE} bytes)..."
+                    tar -xzf "${TOOLCHAIN_DIR}/clang.tar.gz" -C "$TARGET_DIR"
+                    rm -f "${TOOLCHAIN_DIR}/clang.tar.gz"
+                    DOWNLOAD_OK=true
+                else
+                    log_warn "Archive tải về từ Google Git quá nhỏ (${ARCHIVE_SIZE} bytes - có thể chỉ là file .keep placeholder)."
+                    rm -f "${TOOLCHAIN_DIR}/clang.tar.gz"
+                fi
+            fi
+
+            if [ "$DOWNLOAD_OK" = "false" ]; then
+                log_warn "Thử tải AOSP Clang từ mirror GitHub..."
                 git clone --depth=1 "https://github.com/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-${AOSP_CLANG_VERSION}.git" "$TARGET_DIR" || {
                     log_error "Lỗi: Không tìm thấy AOSP Clang phiên bản ${AOSP_CLANG_VERSION}!"
                     exit 1
                 }
-            else
-                tar -xzf "${TOOLCHAIN_DIR}/clang.tar.gz" -C "$TARGET_DIR"
-                rm -f "${TOOLCHAIN_DIR}/clang.tar.gz"
             fi
             log_ok "Đã chuẩn bị xong AOSP Clang ${AOSP_CLANG_VERSION}."
         fi
 
-        # Setup AOSP GCC prebuilts if system cross-compiler is not preferred
-        GCC64_DIR="${TOOLCHAIN_DIR}/aarch64-linux-android-4.9"
-        if [ ! -d "$GCC64_DIR" ]; then
-            log_info "Đang tải prebuilt aarch64-linux-android-4.9..."
-            git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 "$GCC64_DIR" || log_warn "Bỏ qua AOSP GCC64, sẽ dùng system gcc nếu cần."
-        fi
+        # Setup GCC only if LLVM=0 and system cross compiler is missing
+        if [ "${LLVM:-1}" = "0" ] && ! command -v aarch64-linux-gnu-gcc &>/dev/null; then
+            GCC64_DIR="${TOOLCHAIN_DIR}/aarch64-linux-android-4.9"
+            if [ ! -d "$GCC64_DIR" ]; then
+                log_info "Đang tải prebuilt aarch64-linux-android-4.9..."
+                git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 "$GCC64_DIR" || log_warn "Bỏ qua AOSP GCC64, sẽ dùng system gcc nếu cần."
+            fi
 
-        GCC32_DIR="${TOOLCHAIN_DIR}/arm-linux-androideabi-4.9"
-        if [ ! -d "$GCC32_DIR" ]; then
-            log_info "Đang tải prebuilt arm-linux-androideabi-4.9..."
-            git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 "$GCC32_DIR" || log_warn "Bỏ qua AOSP GCC32, sẽ dùng system gcc nếu cần."
+            GCC32_DIR="${TOOLCHAIN_DIR}/arm-linux-androideabi-4.9"
+            if [ ! -d "$GCC32_DIR" ]; then
+                log_info "Đang tải prebuilt arm-linux-androideabi-4.9..."
+                git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 "$GCC32_DIR" || log_warn "Bỏ qua AOSP GCC32, sẽ dùng system gcc nếu cần."
+            fi
         fi
 
         CLANG_BIN="${TARGET_DIR}/bin/clang"

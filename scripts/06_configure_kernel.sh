@@ -104,6 +104,13 @@ if [ "$ENABLE_SUSFS" = "true" ]; then
     set_kconfig "KSU_SUSFS_SUS_MAP" "y"
 fi
 
+# Remove -dirty flag from kernel release string to prevent detection by banking/integrity apps
+if [ -f "${KERNEL_ROOT_DIR}/scripts/setlocalversion" ]; then
+    log_info "Loại bỏ hậu tố -dirty trong scripts/setlocalversion..."
+    sed -i "s/printf '%s' -dirty/printf '%s' ''/g" "${KERNEL_ROOT_DIR}/scripts/setlocalversion" || true
+    sed -i 's/echo "\$res-dirty"/echo "\$res"/g' "${KERNEL_ROOT_DIR}/scripts/setlocalversion" || true
+fi
+
 # Resolve dependencies with olddefconfig
 log_info "Cập nhật và kiểm tra cấu hình bằng olddefconfig..."
 make O="$OUT_DIR" ARCH="$ARCH" SUBARCH="$SUBARCH" olddefconfig

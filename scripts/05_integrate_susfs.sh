@@ -145,6 +145,16 @@ if [ -n "$KERNEL_PATCH_FILE" ] && [ -f "$KERNEL_PATCH_FILE" ]; then
             }
         fi
     fi
+
+    # Fix VMA_PAD_START compatibility for kernels where it does not exist (like 5.15 OEM kernels)
+    if [ -f "${KERNEL_ROOT_DIR}/fs/proc/task_mmu.c" ]; then
+        if grep -q "VMA_PAD_START" "${KERNEL_ROOT_DIR}/fs/proc/task_mmu.c" 2>/dev/null; then
+            if ! grep -rq "VMA_PAD_START" "${KERNEL_ROOT_DIR}/include/" 2>/dev/null; then
+                log_info "Kernel không có macro VMA_PAD_START, tự động thay thế bằng vma->vm_end..."
+                sed -i 's/VMA_PAD_START(vma)/vma->vm_end/g' "${KERNEL_ROOT_DIR}/fs/proc/task_mmu.c"
+            fi
+        fi
+    fi
 else
     log_warn "Không tìm thấy file patch 50_add_susfs_in_*.patch trong ${PATCHES_DIR}!"
 fi

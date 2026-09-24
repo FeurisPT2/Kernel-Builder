@@ -85,7 +85,7 @@ jobs:
             build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
             ccache curl git python3 zip unzip tar xz-utils zstd lz4 patch \
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-aarch64-linux-gnu \
-            device-tree-compiler rsync
+            device-tree-compiler rsync dwarves
 
       - name: Setup ccache
         uses: actions/cache@v4

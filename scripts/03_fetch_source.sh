@@ -69,6 +69,24 @@ if [ ! -f "$KERNEL_ROOT/Makefile" ]; then
     exit 1
 fi
 
+# Fix common Xiaomi OSS missing headers bug (e.g. drivers/misc/hwid/hwid.h)
+if [ ! -f "$KERNEL_ROOT/drivers/misc/hwid/hwid.h" ]; then
+    log_info "Tạo stub cho drivers/misc/hwid/hwid.h (file Xiaomi bỏ quên trong bản OSS)..."
+    mkdir -p "$KERNEL_ROOT/drivers/misc/hwid"
+    cat << 'EOF' > "$KERNEL_ROOT/drivers/misc/hwid/hwid.h"
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _LINUX_HWID_H
+#define _LINUX_HWID_H
+static inline int get_hwid_val(void) { return 0; }
+#endif
+EOF
+fi
+
+# Also remove hardcoded broken include if present in aw882xx.c
+if [ -f "$KERNEL_ROOT/sound/soc/codecs/aw882xx/aw882xx.c" ]; then
+    sed -i 's|#include "../../../drivers/misc/hwid/hwid.h"|/* #include hwid.h */|g' "$KERNEL_ROOT/sound/soc/codecs/aw882xx/aw882xx.c" || true
+fi
+
 # Detect Kernel Version
 VERSION=$(grep -E '^VERSION = ' "$KERNEL_ROOT/Makefile" | awk '{print $3}')
 PATCHLEVEL=$(grep -E '^PATCHLEVEL = ' "$KERNEL_ROOT/Makefile" | awk '{print $3}')

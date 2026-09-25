@@ -109,14 +109,21 @@ if [ "$ENABLE_SUSFS" = "true" ]; then
 fi
 
 # Xiaomi's Corot source force-builds the AW882xx codec as a module. Its DSP
-# helpers are exported by mtk-sp-spk-amp, which lives under the MT6985 ASoC
-# subtree and is otherwise omitted when the generic GKI defconfig is used.
+# helpers are exported by mtk-sp-spk-amp in the MediaTek ASoC common subtree.
+# Enable only that common support and ADSP; selecting the full MT6985 platform
+# also enables unrelated pinctrl code that does not build with this GKI config.
 if [ -f "${KERNEL_ROOT_DIR}/sound/soc/codecs/aw882xx/Makefile" ] \
     && [ -f "${KERNEL_ROOT_DIR}/sound/soc/mediatek/common/mtk-sp-spk-amp.c" ] \
-    && [ -d "${KERNEL_ROOT_DIR}/sound/soc/mediatek/mt6985" ]; then
-    log_info "Bật cấu hình SoC MT6985 để build provider cho codec AW882xx..."
-    set_kconfig "ARCH_MEDIATEK" "y"
-    set_kconfig "SND_SOC_MT6985" "m"
+    && [ -f "${KERNEL_ROOT_DIR}/sound/soc/mediatek/Kconfig" ]; then
+    MEDIATEK_ASOC_KCONFIG="${KERNEL_ROOT_DIR}/sound/soc/mediatek/Kconfig"
+    if grep -q '^config SND_SOC_MEDIATEK$' "$MEDIATEK_ASOC_KCONFIG" \
+        && ! sed -n '/^config SND_SOC_MEDIATEK$/,/^$/p' "$MEDIATEK_ASOC_KCONFIG" | grep -q '"'; then
+        sed -i '/^config SND_SOC_MEDIATEK$/,/^$/ s/^\([[:space:]]*tristate\)$/\1 "MediaTek ASoC common support"/' "$MEDIATEK_ASOC_KCONFIG"
+    fi
+    log_info "Bật MediaTek ASoC common và ADSP để build provider cho AW882xx..."
+    set_kconfig "SND_SOC_MEDIATEK" "m"
+    set_kconfig "MTK_AUDIODSP_SUPPORT" "m"
+    set_kconfig "SND_SOC_MTK_AUDIO_DSP" "m"
 fi
 
 # Disable stack frame warning & warnings-as-errors to prevent compile aborts on inlined functions (e.g. io_uring)

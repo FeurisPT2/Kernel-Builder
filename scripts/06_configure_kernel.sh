@@ -108,10 +108,21 @@ if [ "$ENABLE_SUSFS" = "true" ]; then
     set_kconfig "KSU_SUSFS_SUS_MAP" "y"
 fi
 
+# Xiaomi's Corot source force-builds the AW882xx codec as a module. Its DSP
+# helpers are exported by mtk-sp-spk-amp, which lives under the Mediatek ASoC
+# subtree and is otherwise omitted when the generic GKI defconfig is used.
+if [ -f "${KERNEL_ROOT_DIR}/sound/soc/codecs/aw882xx/Makefile" ] \
+    && [ -f "${KERNEL_ROOT_DIR}/sound/soc/mediatek/common/mtk-sp-spk-amp.c" ]; then
+    log_info "Bật CONFIG_SND_SOC_MEDIATEK để build provider cho codec AW882xx..."
+    set_kconfig "SND_SOC_MEDIATEK" "m"
+fi
+
 # Disable stack frame warning & warnings-as-errors to prevent compile aborts on inlined functions (e.g. io_uring)
-log_info "Tắt giới hạn FRAME_WARN và WERROR để tránh lỗi compiler warnings..."
+log_info "Tắt giới hạn FRAME_WARN, WERROR và DEBUG_INFO_BTF để tránh lỗi linker vmlinux..."
 set_kconfig "FRAME_WARN" "0"
 set_kconfig "WERROR" "n"
+set_kconfig "DEBUG_INFO_BTF" "n"
+set_kconfig "DEBUG_INFO_BTF_MODULES" "n"
 
 # Remove -dirty flag from kernel release string to prevent detection by banking/integrity apps
 if [ -f "${KERNEL_ROOT_DIR}/scripts/setlocalversion" ]; then

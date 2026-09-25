@@ -124,6 +124,7 @@ if [ -f "${KERNEL_ROOT_DIR}/sound/soc/codecs/aw882xx/Makefile" ] \
     set_kconfig "SND_SOC_MEDIATEK" "m"
     set_kconfig "MTK_AUDIODSP_SUPPORT" "m"
     set_kconfig "SND_SOC_MTK_AUDIO_DSP" "m"
+    set_kconfig "COMPILE_TEST" "y"
     set_kconfig "MTK_MBOX" "m"
 fi
 
